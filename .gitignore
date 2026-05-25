@@ -1,0 +1,5 @@
+node_modules/
+nanobanana-output/
+*.log
+nanobanana-server
+gemini-extension.json
