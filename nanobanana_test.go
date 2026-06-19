@@ -234,7 +234,7 @@ func TestResolveModelName(t *testing.T) {
 		// Natural language matching
 		{"A cute banana drawing using model nano-banana", "A cute banana drawing", "models/nano-banana-pro-preview"},
 		{"A cute banana drawing with nanobanana", "A cute banana drawing", "models/nano-banana-pro-preview"},
-		{"A cool tree using model gemini 3.1 pro", "A cool tree", "models/gemini-3.1-pro-preview"},
+		{"A cool tree using model gemini 3.1 pro", "A cool tree", "models/gemini-3-pro-image"},
 		{"A landscape with model pro image", "A landscape", "models/gemini-3-pro-image"},
 		
 		// Explicit parameters

@@ -136,56 +136,169 @@ func (ig *ImageGenerator) resolveModelName(prompt string) (string, string) {
 			fullModelName = "models/" + val
 		}
 		
-		// Validate against list
-		for _, name := range modelList {
-			if name == fullModelName {
-				fmt.Fprintf(os.Stderr, "DEBUG - Explicit model override resolved to: %s\n", fullModelName)
-				return cleanedPrompt, fullModelName
-			}
-		}
+		// Return directly
+		fmt.Fprintf(os.Stderr, "DEBUG - Explicit model override resolved to: %s\n", fullModelName)
+		return cleanedPrompt, fullModelName
 	}
 
 	// Dynamic Natural Language keywords matching
 	if strings.Contains(lowerPrompt, "nano-banana") || strings.Contains(lowerPrompt, "nanobanana") {
-		matchedModel = "models/nano-banana-pro-preview"
-	} else if strings.Contains(lowerPrompt, "3.1 pro") || strings.Contains(lowerPrompt, "gemini 3 pro") || strings.Contains(lowerPrompt, "gemini 3.1 pro") {
-		matchedModel = "models/gemini-3.1-pro-preview"
-	} else if strings.Contains(lowerPrompt, "3.1 flash image") || strings.Contains(lowerPrompt, "flash image") {
-		matchedModel = "models/gemini-3.1-flash-image"
-	} else if strings.Contains(lowerPrompt, "3 pro image") || strings.Contains(lowerPrompt, "pro image") {
-		matchedModel = "models/gemini-3-pro-image"
-	} else if strings.Contains(lowerPrompt, "2.5 flash image") {
-		matchedModel = "models/gemini-2.5-flash-image"
-	} else if strings.Contains(lowerPrompt, "veo 3") {
-		matchedModel = "models/veo-3.0-generate-001"
+		for _, name := range modelList {
+			if strings.Contains(name, "nano-banana") && strings.Contains(name, "pro") {
+				matchedModel = name
+				break
+			}
+		}
+		if matchedModel == "" {
+			for _, name := range modelList {
+				if strings.Contains(name, "nano-banana") {
+					matchedModel = name
+					break
+				}
+			}
+		}
+		if matchedModel == "" {
+			matchedModel = "models/nano-banana-pro-preview"
+		}
+	} else if strings.Contains(lowerPrompt, "pro") {
+		var version string
+		for _, v := range []string{"3.5", "3.1", "3", "2.5"} {
+			if strings.Contains(lowerPrompt, v) {
+				version = v
+				break
+			}
+		}
+
+		if version != "" {
+			for _, name := range modelList {
+				if strings.Contains(name, version) && strings.Contains(name, "pro") && strings.Contains(name, "image") {
+					matchedModel = name
+					break
+				}
+			}
+		} else {
+			for _, v := range []string{"3.5", "3.1", "3", "2.5"} {
+				for _, name := range modelList {
+					if strings.Contains(name, v) && strings.Contains(name, "pro") && strings.Contains(name, "image") {
+						matchedModel = name
+						break
+					}
+				}
+				if matchedModel != "" {
+					break
+				}
+			}
+		}
+
+		if matchedModel == "" {
+			for _, name := range modelList {
+				if strings.Contains(name, "pro") && strings.Contains(name, "image") {
+					matchedModel = name
+					break
+				}
+			}
+		}
+		if matchedModel == "" {
+			for _, name := range modelList {
+				if strings.Contains(name, "nano-banana") && strings.Contains(name, "pro") {
+					matchedModel = name
+					break
+				}
+			}
+		}
+		if matchedModel == "" {
+			matchedModel = "models/gemini-3-pro-image"
+		}
+	} else if strings.Contains(lowerPrompt, "flash") {
+		var version string
+		for _, v := range []string{"3.5", "3.1", "3", "2.5"} {
+			if strings.Contains(lowerPrompt, v) {
+				version = v
+				break
+			}
+		}
+
+		if version != "" {
+			for _, name := range modelList {
+				if strings.Contains(name, version) && strings.Contains(name, "flash") && strings.Contains(name, "image") {
+					matchedModel = name
+					break
+				}
+			}
+		} else {
+			for _, v := range []string{"3.5", "3.1", "3", "2.5"} {
+				for _, name := range modelList {
+					if strings.Contains(name, v) && strings.Contains(name, "flash") && strings.Contains(name, "image") {
+						matchedModel = name
+						break
+					}
+				}
+				if matchedModel != "" {
+					break
+				}
+			}
+		}
+
+		if matchedModel == "" {
+			for _, name := range modelList {
+				if strings.Contains(name, "flash") && strings.Contains(name, "image") {
+					matchedModel = name
+					break
+				}
+			}
+		}
+		if matchedModel == "" {
+			matchedModel = "models/gemini-3.1-flash-image"
+		}
+	} else if strings.Contains(lowerPrompt, "veo 3") || strings.Contains(lowerPrompt, "veo") {
+		for _, name := range modelList {
+			if strings.Contains(name, "veo-3") || strings.Contains(name, "veo") {
+				matchedModel = name
+				break
+			}
+		}
+		if matchedModel == "" {
+			matchedModel = "models/veo-3.0-generate-001"
+		}
 	}
 
 	if matchedModel != "" {
-		// Verify if the matchedModel is in our available list
+		// Strip descriptive phrases to keep image generation clean
+		cleanedPrompt := prompt
+		replacements := []string{
+			"using model nano-banana", "using model nanobanana", "using nano-banana", "using nanobanana",
+			"using model gemini 3 pro", "using gemini 3 pro", "using model gemini 3.1 pro", "using gemini 3.1 pro",
+			"using model flash image", "using flash image", "using model pro image", "using pro image",
+			"using model 2.5 flash image", "using 2.5 flash image", "using model veo 3", "using veo 3",
+			"with model nano-banana", "with model nanobanana", "with nano-banana", "with nanobanana",
+			"with model gemini 3 pro", "with gemini 3 pro", "with model gemini 3.1 pro", "with gemini 3.1 pro",
+			"with model flash image", "with flash image", "with model pro image", "with pro image",
+			"with model 2.5 flash image", "with 2.5 flash image", "with model veo 3", "with veo 3",
+			"use gemini 3.1 pro model", "use gemini 3 pro model", "use nano-banana model", "use nanobanana model",
+			"use model gemini 3.1 pro", "use model gemini 3 pro", "use model nano-banana", "use model nanobanana",
+		}
+		for _, r := range replacements {
+			cleanedPrompt = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(r)+`\b`).ReplaceAllString(cleanedPrompt, "")
+		}
+		// Also do general model indicator replacements
+		cleanedPrompt = regexp.MustCompile(`(?i)\buse\s+(gemini\s+)?3\.1\s+pro(\s+model)?\b`).ReplaceAllString(cleanedPrompt, "")
+		cleanedPrompt = strings.TrimSpace(cleanedPrompt)
+		cleanedPrompt = regexp.MustCompile(`\s+`).ReplaceAllString(cleanedPrompt, " ")
+		
+		// Log if not in modelList, but still use it
+		found := false
 		for _, name := range modelList {
 			if name == matchedModel {
-				fmt.Fprintf(os.Stderr, "DEBUG - Natural language resolved model to: %s\n", matchedModel)
-				
-				// Strip descriptive phrases to keep image generation clean
-				cleanedPrompt := prompt
-				replacements := []string{
-					"using model nano-banana", "using model nanobanana", "using nano-banana", "using nanobanana",
-					"using model gemini 3 pro", "using gemini 3 pro", "using model gemini 3.1 pro", "using gemini 3.1 pro",
-					"using model flash image", "using flash image", "using model pro image", "using pro image",
-					"using model 2.5 flash image", "using 2.5 flash image", "using model veo 3", "using veo 3",
-					"with model nano-banana", "with model nanobanana", "with nano-banana", "with nanobanana",
-					"with model gemini 3 pro", "with gemini 3 pro", "with model gemini 3.1 pro", "with gemini 3.1 pro",
-					"with model flash image", "with flash image", "with model pro image", "with pro image",
-					"with model 2.5 flash image", "with 2.5 flash image", "with model veo 3", "with veo 3",
-				}
-				for _, r := range replacements {
-					cleanedPrompt = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(r)+`\b`).ReplaceAllString(cleanedPrompt, "")
-				}
-				cleanedPrompt = strings.TrimSpace(cleanedPrompt)
-				cleanedPrompt = regexp.MustCompile(`\s+`).ReplaceAllString(cleanedPrompt, " ")
-				return cleanedPrompt, matchedModel
+				found = true
+				break
 			}
 		}
+		if found {
+			fmt.Fprintf(os.Stderr, "DEBUG - Natural language resolved model to: %s\n", matchedModel)
+		} else {
+			fmt.Fprintf(os.Stderr, "DEBUG - Natural language resolved model to: %s (Note: not found in API model list, using anyway)\n", matchedModel)
+		}
+		return cleanedPrompt, matchedModel
 	}
 
 	// Fallback to default configured model name
@@ -217,8 +330,8 @@ func (ig *ImageGenerator) parseLocalModelRules(prompt string) (string, string) {
 	if strings.Contains(lowerPrompt, "nano-banana") || strings.Contains(lowerPrompt, "nanobanana") {
 		matchedModel = "models/nano-banana-pro-preview"
 	} else if strings.Contains(lowerPrompt, "3.1 pro") || strings.Contains(lowerPrompt, "gemini 3 pro") || strings.Contains(lowerPrompt, "gemini 3.1 pro") {
-		matchedModel = "models/gemini-3.1-pro-preview"
-	} else if strings.Contains(lowerPrompt, "3.1 flash image") || strings.Contains(lowerPrompt, "flash image") {
+		matchedModel = "models/gemini-3-pro-image"
+	} else if strings.Contains(lowerPrompt, "3.1 flash image") || strings.Contains(lowerPrompt, "flash image") || strings.Contains(lowerPrompt, "3.1 flash") || strings.Contains(lowerPrompt, "flash") {
 		matchedModel = "models/gemini-3.1-flash-image"
 	} else if strings.Contains(lowerPrompt, "3 pro image") || strings.Contains(lowerPrompt, "pro image") {
 		matchedModel = "models/gemini-3-pro-image"
