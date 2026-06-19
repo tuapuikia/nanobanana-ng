@@ -85,6 +85,172 @@ func NewImageGenerator(authConfig AuthConfig, fh *FileHandler, mh *MemoryHandler
 	}, nil
 }
 
+func (ig *ImageGenerator) resolveModelName(prompt string) (string, string) {
+	// 1. Get all models available from API
+	if ig.ai == nil {
+		fmt.Fprintf(os.Stderr, "DEBUG - GenAI client is nil. Using default model: %s\n", ig.modelName)
+		// Fallback to static rule parsing without API call if client isn't initialized (e.g. in tests)
+		return ig.parseLocalModelRules(prompt)
+	}
+
+	ctx := context.Background()
+	page, err := ig.ai.Models.List(ctx, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG - Failed to list models from endpoint: %v. Using default: %s\n", err, ig.modelName)
+		return ig.parseLocalModelRules(prompt)
+	}
+
+	var modelList []string
+	for {
+		for _, m := range page.Items {
+			modelList = append(modelList, m.Name)
+		}
+		if page.NextPageToken == "" {
+			break
+		}
+		page, err = page.Next(ctx)
+		if err != nil {
+			break
+		}
+	}
+
+	// 2. Parse natural language intent for custom models.
+	// Look for: --model=<model> or model:<model> or use model <model>
+	// We also support keywords like: pro, flash, banana, nano, lyria
+	lowerPrompt := strings.ToLower(prompt)
+	var matchedModel string
+
+	// Explicit override options
+	explicitRe := regexp.MustCompile(`(?i)--model[=\s](models\/[a-zA-Z0-9\-\.]+|[a-zA-Z0-9\-\.]+)|model:\s*(models\/[a-zA-Z0-9\-\.]+|[a-zA-Z0-9\-\.]+)`)
+	matches := explicitRe.FindStringSubmatch(prompt)
+	if len(matches) > 0 {
+		val := matches[1]
+		if val == "" {
+			val = matches[2]
+		}
+		cleanedPrompt := strings.TrimSpace(explicitRe.ReplaceAllString(prompt, ""))
+		
+		// Ensure it has models/ prefix
+		fullModelName := val
+		if !strings.HasPrefix(fullModelName, "models/") {
+			fullModelName = "models/" + val
+		}
+		
+		// Validate against list
+		for _, name := range modelList {
+			if name == fullModelName {
+				fmt.Fprintf(os.Stderr, "DEBUG - Explicit model override resolved to: %s\n", fullModelName)
+				return cleanedPrompt, fullModelName
+			}
+		}
+	}
+
+	// Dynamic Natural Language keywords matching
+	if strings.Contains(lowerPrompt, "nano-banana") || strings.Contains(lowerPrompt, "nanobanana") {
+		matchedModel = "models/nano-banana-pro-preview"
+	} else if strings.Contains(lowerPrompt, "3.1 pro") || strings.Contains(lowerPrompt, "gemini 3 pro") || strings.Contains(lowerPrompt, "gemini 3.1 pro") {
+		matchedModel = "models/gemini-3.1-pro-preview"
+	} else if strings.Contains(lowerPrompt, "3.1 flash image") || strings.Contains(lowerPrompt, "flash image") {
+		matchedModel = "models/gemini-3.1-flash-image"
+	} else if strings.Contains(lowerPrompt, "3 pro image") || strings.Contains(lowerPrompt, "pro image") {
+		matchedModel = "models/gemini-3-pro-image"
+	} else if strings.Contains(lowerPrompt, "2.5 flash image") {
+		matchedModel = "models/gemini-2.5-flash-image"
+	} else if strings.Contains(lowerPrompt, "veo 3") {
+		matchedModel = "models/veo-3.0-generate-001"
+	}
+
+	if matchedModel != "" {
+		// Verify if the matchedModel is in our available list
+		for _, name := range modelList {
+			if name == matchedModel {
+				fmt.Fprintf(os.Stderr, "DEBUG - Natural language resolved model to: %s\n", matchedModel)
+				
+				// Strip descriptive phrases to keep image generation clean
+				cleanedPrompt := prompt
+				replacements := []string{
+					"using model nano-banana", "using model nanobanana", "using nano-banana", "using nanobanana",
+					"using model gemini 3 pro", "using gemini 3 pro", "using model gemini 3.1 pro", "using gemini 3.1 pro",
+					"using model flash image", "using flash image", "using model pro image", "using pro image",
+					"using model 2.5 flash image", "using 2.5 flash image", "using model veo 3", "using veo 3",
+					"with model nano-banana", "with model nanobanana", "with nano-banana", "with nanobanana",
+					"with model gemini 3 pro", "with gemini 3 pro", "with model gemini 3.1 pro", "with gemini 3.1 pro",
+					"with model flash image", "with flash image", "with model pro image", "with pro image",
+					"with model 2.5 flash image", "with 2.5 flash image", "with model veo 3", "with veo 3",
+				}
+				for _, r := range replacements {
+					cleanedPrompt = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(r)+`\b`).ReplaceAllString(cleanedPrompt, "")
+				}
+				cleanedPrompt = strings.TrimSpace(cleanedPrompt)
+				cleanedPrompt = regexp.MustCompile(`\s+`).ReplaceAllString(cleanedPrompt, " ")
+				return cleanedPrompt, matchedModel
+			}
+		}
+	}
+
+	// Fallback to default configured model name
+	return prompt, ig.modelName
+}
+
+func (ig *ImageGenerator) parseLocalModelRules(prompt string) (string, string) {
+	lowerPrompt := strings.ToLower(prompt)
+	var matchedModel string
+
+	// Explicit override options
+	explicitRe := regexp.MustCompile(`(?i)--model[=\s](models\/[a-zA-Z0-9\-\.]+|[a-zA-Z0-9\-\.]+)|model:\s*(models\/[a-zA-Z0-9\-\.]+|[a-zA-Z0-9\-\.]+)`)
+	matches := explicitRe.FindStringSubmatch(prompt)
+	if len(matches) > 0 {
+		val := matches[1]
+		if val == "" {
+			val = matches[2]
+		}
+		cleanedPrompt := strings.TrimSpace(explicitRe.ReplaceAllString(prompt, ""))
+		
+		fullModelName := val
+		if !strings.HasPrefix(fullModelName, "models/") {
+			fullModelName = "models/" + val
+		}
+		return cleanedPrompt, fullModelName
+	}
+
+	// Dynamic Natural Language keywords matching
+	if strings.Contains(lowerPrompt, "nano-banana") || strings.Contains(lowerPrompt, "nanobanana") {
+		matchedModel = "models/nano-banana-pro-preview"
+	} else if strings.Contains(lowerPrompt, "3.1 pro") || strings.Contains(lowerPrompt, "gemini 3 pro") || strings.Contains(lowerPrompt, "gemini 3.1 pro") {
+		matchedModel = "models/gemini-3.1-pro-preview"
+	} else if strings.Contains(lowerPrompt, "3.1 flash image") || strings.Contains(lowerPrompt, "flash image") {
+		matchedModel = "models/gemini-3.1-flash-image"
+	} else if strings.Contains(lowerPrompt, "3 pro image") || strings.Contains(lowerPrompt, "pro image") {
+		matchedModel = "models/gemini-3-pro-image"
+	} else if strings.Contains(lowerPrompt, "2.5 flash image") {
+		matchedModel = "models/gemini-2.5-flash-image"
+	} else if strings.Contains(lowerPrompt, "veo 3") {
+		matchedModel = "models/veo-3.0-generate-001"
+	}
+
+	if matchedModel != "" {
+		cleanedPrompt := prompt
+		replacements := []string{
+			"using model nano-banana", "using model nanobanana", "using nano-banana", "using nanobanana",
+			"using model gemini 3 pro", "using gemini 3 pro", "using model gemini 3.1 pro", "using gemini 3.1 pro",
+			"using model flash image", "using flash image", "using model pro image", "using pro image",
+			"using model 2.5 flash image", "using 2.5 flash image", "using model veo 3", "using veo 3",
+			"with model nano-banana", "with model nanobanana", "with nano-banana", "with nanobanana",
+			"with model gemini 3 pro", "with gemini 3 pro", "with model gemini 3.1 pro", "with gemini 3.1 pro",
+			"with model flash image", "with flash image", "with model pro image", "with pro image",
+			"with model 2.5 flash image", "with 2.5 flash image", "with model veo 3", "with veo 3",
+		}
+		for _, r := range replacements {
+			cleanedPrompt = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(r)+`\b`).ReplaceAllString(cleanedPrompt, "")
+		}
+		cleanedPrompt = strings.TrimSpace(cleanedPrompt)
+		cleanedPrompt = regexp.MustCompile(`\s+`).ReplaceAllString(cleanedPrompt, " ")
+		return cleanedPrompt, matchedModel
+	}
+
+	return prompt, ig.modelName
+}
+
 func ValidateAuthentication() (AuthConfig, error) {
 	fmt.Fprintln(os.Stderr, "DEBUG - Validating authentication...")
 
@@ -436,13 +602,19 @@ func (ig *ImageGenerator) GenerateTextToImage(request ImageGenerationRequest) (I
 	ctx := context.Background()
 	outputPath := ig.fh.EnsureOutputDirectory()
 	var generatedFiles []string
+
+	// Resolve the model name using natural language in the prompt.
+	// If not specified, it returns the original prompt and ig.modelName
+	cleanedPrompt, resolvedModel := ig.resolveModelName(request.Prompt)
+	request.Prompt = cleanedPrompt
+
 	prompts := ig.buildBatchPrompts(request)
 	var firstError string
 
-	fmt.Fprintf(os.Stderr, "DEBUG - Generating %d image variation(s)\n", len(prompts))
+	fmt.Fprintf(os.Stderr, "DEBUG - Resolved Model: %s, Generating %d image variation(s)\n", resolvedModel, len(prompts))
 
 	for i, currentPrompt := range prompts {
-		fmt.Fprintf(os.Stderr, "DEBUG - Generating variation %d/%d: %s\n", i+1, len(prompts), currentPrompt)
+		fmt.Fprintf(os.Stderr, "DEBUG - Generating variation %d/%d (model=%s): %s\n", i+1, len(prompts), resolvedModel, currentPrompt)
 
 		var responseModalities []string
 		if request.IncludeText {
@@ -466,7 +638,7 @@ func (ig *ImageGenerator) GenerateTextToImage(request ImageGenerationRequest) (I
 
 		resp, err := ig.ai.Models.GenerateContent(
 			ctx,
-			ig.modelName,
+			resolvedModel,
 			[]*genai.Content{{
 				Role:  "user",
 				Parts: []*genai.Part{{Text: currentPrompt}},
@@ -493,7 +665,7 @@ func (ig *ImageGenerator) GenerateTextToImage(request ImageGenerationRequest) (I
 					fullPath, errSave := ig.fh.SaveImageFromBase64(b64Data, outputPath, filename)
 					if errSave == nil {
 						generatedFiles = append(generatedFiles, fullPath)
-						ig.logGeneration(ig.modelName, []string{fullPath}, "")
+						ig.logGeneration(resolvedModel, []string{fullPath}, "")
 					} else {
 						firstError = errSave.Error()
 					}

@@ -40,7 +40,7 @@ build-all: build-windows build-darwin build-linux
 
 docker-reproducible-build:
 	@echo "Building all binaries inside Docker (Go $(GO_VERSION))..."
-	docker build --load --target builder -t $(BINARY_NAME)-builder .
+	docker build --target builder -t $(BINARY_NAME)-builder .
 	@docker rm -f $(BINARY_NAME)-temp 2>/dev/null || true
 	docker create --name $(BINARY_NAME)-temp $(BINARY_NAME)-builder
 	@mkdir -p dist

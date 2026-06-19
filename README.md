@@ -56,6 +56,26 @@ export NANOBANANA_TEXT_MODEL=gemini-3-pro-image-preview
 
 Alternatively, use the `--review-model` flag with the `/manga` command to specify a model for a single request.
 
+### 🗣️ Natural Language Model Overrides
+
+You can override the model on-the-fly directly inside your image generation prompts using natural language. The server will dynamically verify available models from your endpoint, select the correct model, and strip the override keywords from the prompt before generating:
+
+- **Keywords matching**:
+  - *"using model nano-banana"* or *"with nanobanana"* -> `models/nano-banana-pro-preview`
+  - *"using model gemini 3 pro"* or *"with gemini 3 pro"* -> `models/gemini-3.1-pro-preview`
+  - *"using model flash image"* or *"with flash image"* -> `models/gemini-3.1-flash-image`
+  - *"using model pro image"* or *"with pro image"* -> `models/gemini-3-pro-image`
+  - *"using model 2.5 flash image"* or *"with 2.5 flash image"* -> `models/gemini-2.5-flash-image`
+  - *"using model veo 3"* or *"with veo 3"* -> `models/veo-3.0-generate-001`
+- **Explicit Parameter**:
+  - `--model <name>` or `model: <name>` (e.g. `--model gemini-3.1-flash-image-preview` or `model: gemini-3-pro-image-preview`)
+
+**Examples**:
+* `/generate prompt="A high-tech control panel with nanobanana"` (resolves to Nano Banana Pro)
+* `/generate prompt="A serene forest lake using model pro image"` (resolves to Gemini 3 Pro Image)
+* `/generate prompt="A cute robot cat --model gemini-3-pro-image-preview"` (resolves to custom model name)
+
+
 ## 🚀 Installation
 
 ### 1. Install Extension

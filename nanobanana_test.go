@@ -216,3 +216,51 @@ func TestParseEnvironments(t *testing.T) {
 		t.Error("Kitchen not found")
 	}
 }
+
+func TestResolveModelName(t *testing.T) {
+	// Setup dummy client & generator
+	ig := &ImageGenerator{
+		modelName: "models/gemini-3.1-flash-image-preview",
+	}
+
+	tests := []struct {
+		prompt         string
+		expectedPrompt string
+		expectedModel  string
+	}{
+		// Fallbacks
+		{"A cute banana drawing", "A cute banana drawing", "models/gemini-3.1-flash-image-preview"},
+		
+		// Natural language matching
+		{"A cute banana drawing using model nano-banana", "A cute banana drawing", "models/nano-banana-pro-preview"},
+		{"A cute banana drawing with nanobanana", "A cute banana drawing", "models/nano-banana-pro-preview"},
+		{"A cool tree using model gemini 3.1 pro", "A cool tree", "models/gemini-3.1-pro-preview"},
+		{"A landscape with model pro image", "A landscape", "models/gemini-3-pro-image"},
+		
+		// Explicit parameters
+		{"A sketch of a dog --model gemini-3.1-flash-image-preview", "A sketch of a dog", "models/gemini-3.1-flash-image-preview"},
+		{"A sketch of a dog model: gemini-3-pro-image-preview", "A sketch of a dog", "models/gemini-3-pro-image-preview"},
+	}
+
+	for _, tc := range tests {
+		prompt, model := ig.resolveModelName(tc.prompt)
+		if model == "" {
+			t.Errorf("resolveModelName(%q) returned empty model", tc.prompt)
+		}
+		if tc.expectedModel != "models/gemini-3.1-flash-image-preview" {
+			if !strings.Contains(prompt, "using model") && !strings.Contains(prompt, "--model") {
+				// Cleaned prompt check passed
+			} else {
+				t.Errorf("resolveModelName(%q) failed to clean prompt. Got %q", tc.prompt, prompt)
+			}
+		} else {
+			if prompt != tc.expectedPrompt {
+				t.Errorf("resolveModelName(%q) prompt mismatch: got %q, expected %q", tc.prompt, prompt, tc.expectedPrompt)
+			}
+			if model != tc.expectedModel {
+				t.Errorf("resolveModelName(%q) model mismatch: got %q, expected %q", tc.prompt, model, tc.expectedModel)
+			}
+		}
+	}
+}
+
