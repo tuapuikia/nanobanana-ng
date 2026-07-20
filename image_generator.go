@@ -401,6 +401,20 @@ func ValidateAuthentication() (AuthConfig, error) {
 		"For more details on authentication, visit: https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/authentication.md")
 }
 
+func getMimeType(filePath string) string {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".webp":
+		return "image/webp"
+	case ".heic", ".heif":
+		return "image/heic"
+	default:
+		return "image/png"
+	}
+}
+
 func isValidBase64ImageData(data string) bool {
 	if len(data) < 100 {
 		return false
@@ -749,12 +763,41 @@ func (ig *ImageGenerator) GenerateTextToImage(request ImageGenerationRequest) (I
 			config.TopP = &p
 		}
 
+		parts := []*genai.Part{{Text: currentPrompt}}
+
+		refImages := request.ReferenceImages
+		if len(refImages) > 14 {
+			fmt.Fprintf(os.Stderr, "WARNING - Official API supports up to 14 reference images. Truncating from %d to 14.\n", len(refImages))
+			refImages = refImages[:14]
+		}
+
+		for _, refImg := range refImages {
+			fileRes := ig.fh.FindInputFile(refImg)
+			if !fileRes.Found {
+				fmt.Fprintf(os.Stderr, "WARNING - Reference image not found: %s\n", refImg)
+				continue
+			}
+			imgB64, errRead := ig.fh.ReadImageAsBase64(fileRes.FilePath)
+			if errRead != nil {
+				fmt.Fprintf(os.Stderr, "WARNING - Failed to read reference image %s: %v\n", refImg, errRead)
+				continue
+			}
+			imgBytes, _ := base64.StdEncoding.DecodeString(imgB64)
+			mimeType := getMimeType(fileRes.FilePath)
+			parts = append(parts, &genai.Part{
+				InlineData: &genai.Blob{
+					Data:     imgBytes,
+					MIMEType: mimeType,
+				},
+			})
+		}
+
 		resp, err := ig.ai.Models.GenerateContent(
 			ctx,
 			resolvedModel,
 			[]*genai.Content{{
 				Role:  "user",
-				Parts: []*genai.Part{{Text: currentPrompt}},
+				Parts: parts,
 			}},
 			config,
 		)
@@ -831,16 +874,45 @@ func (ig *ImageGenerator) EditImage(request ImageGenerationRequest) (ImageGenera
 	}
 
 	imgBytes, _ := base64.StdEncoding.DecodeString(imgB64)
+	mimeType := getMimeType(fileRes.FilePath)
+	parts := []*genai.Part{
+		{Text: promptText},
+		{InlineData: &genai.Blob{Data: imgBytes, MIMEType: mimeType}},
+	}
+
+	refImages := request.ReferenceImages
+	if len(refImages) > 13 {
+		fmt.Fprintf(os.Stderr, "WARNING - Official API supports up to 14 reference images (including primary). Truncating additional reference images from %d to 13.\n", len(refImages))
+		refImages = refImages[:13]
+	}
+
+	for _, refImg := range refImages {
+		rFileRes := ig.fh.FindInputFile(refImg)
+		if !rFileRes.Found {
+			fmt.Fprintf(os.Stderr, "WARNING - Additional reference image not found: %s\n", refImg)
+			continue
+		}
+		rImgB64, errRead := ig.fh.ReadImageAsBase64(rFileRes.FilePath)
+		if errRead != nil {
+			fmt.Fprintf(os.Stderr, "WARNING - Failed to read additional reference image %s: %v\n", refImg, errRead)
+			continue
+		}
+		rImgBytes, _ := base64.StdEncoding.DecodeString(rImgB64)
+		rMimeType := getMimeType(rFileRes.FilePath)
+		parts = append(parts, &genai.Part{
+			InlineData: &genai.Blob{
+				Data:     rImgBytes,
+				MIMEType: rMimeType,
+			},
+		})
+	}
 
 	resp, err := ig.ai.Models.GenerateContent(
 		ctx,
 		ig.modelName,
 		[]*genai.Content{{
-			Role: "user",
-			Parts: []*genai.Part{
-				{Text: promptText},
-				{InlineData: &genai.Blob{Data: imgBytes, MIMEType: "image/png"}},
-			},
+			Role:  "user",
+			Parts: parts,
 		}},
 		&genai.GenerateContentConfig{
 			ResponseModalities: []string{"IMAGE"},

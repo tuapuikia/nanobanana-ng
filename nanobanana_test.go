@@ -264,3 +264,24 @@ func TestResolveModelName(t *testing.T) {
 	}
 }
 
+func TestGetMimeType(t *testing.T) {
+	tests := []struct {
+		filePath string
+		expected string
+	}{
+		{"image.jpg", "image/jpeg"},
+		{"image.JPEG", "image/jpeg"},
+		{"/path/to/my_image.png", "image/png"},
+		{"test.webp", "image/webp"},
+		{"photo.heic", "image/heic"},
+		{"unknown.xyz", "image/png"},
+	}
+
+	for _, tc := range tests {
+		result := getMimeType(tc.filePath)
+		if result != tc.expected {
+			t.Errorf("getMimeType(%q) = %q; expected %q", tc.filePath, result, tc.expected)
+		}
+	}
+}
+

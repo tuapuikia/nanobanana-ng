@@ -97,6 +97,13 @@ func main() {
 					"description": "Automatically open generated images in default viewer",
 					"default":     false,
 				},
+				"referenceImages": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "string",
+					},
+					"description": "Array of reference image filenames/paths (up to 14 reference images are supported)",
+				},
 			},
 			"required": []string{"prompt"},
 		},
@@ -107,14 +114,15 @@ func main() {
 		}
 
 		genReq := ImageGenerationRequest{
-			Prompt:      toolArgs.Prompt,
-			Mode:        "generate",
-			Styles:      toolArgs.Styles,
-			Variations:  toolArgs.Variations,
-			Format:      toolArgs.Format,
-			Seed:        toolArgs.Seed,
-			Temperature: toolArgs.Temperature,
-			TopP:        toolArgs.TopP,
+			Prompt:          toolArgs.Prompt,
+			Mode:            "generate",
+			Styles:          toolArgs.Styles,
+			Variations:      toolArgs.Variations,
+			Format:          toolArgs.Format,
+			Seed:            toolArgs.Seed,
+			Temperature:     toolArgs.Temperature,
+			TopP:            toolArgs.TopP,
+			ReferenceImages: toolArgs.ReferenceImages,
 		}
 		if toolArgs.OutputCount != nil {
 			genReq.OutputCount = *toolArgs.OutputCount
@@ -154,6 +162,13 @@ func main() {
 					"description": "Automatically open generated images in default viewer",
 					"default":     false,
 				},
+				"referenceImages": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "string",
+					},
+					"description": "Array of additional reference image filenames/paths to use during edit (up to 14 reference images are supported)",
+				},
 			},
 			"required": []string{"prompt", "file"},
 		},
@@ -164,9 +179,10 @@ func main() {
 		}
 
 		genReq := ImageGenerationRequest{
-			Prompt:     toolArgs.Prompt,
-			InputImage: toolArgs.File,
-			Mode:       "edit",
+			Prompt:          toolArgs.Prompt,
+			InputImage:      toolArgs.File,
+			Mode:            "edit",
+			ReferenceImages: toolArgs.ReferenceImages,
 		}
 		if toolArgs.Preview != nil {
 			genReq.Preview = *toolArgs.Preview
@@ -201,6 +217,13 @@ func main() {
 					"description": "Automatically open generated images in default viewer",
 					"default":     false,
 				},
+				"referenceImages": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "string",
+					},
+					"description": "Array of additional reference image filenames/paths to use during restore (up to 14 reference images are supported)",
+				},
 			},
 			"required": []string{"prompt", "file"},
 		},
@@ -211,9 +234,10 @@ func main() {
 		}
 
 		genReq := ImageGenerationRequest{
-			Prompt:     toolArgs.Prompt,
-			InputImage: toolArgs.File,
-			Mode:       "restore",
+			Prompt:          toolArgs.Prompt,
+			InputImage:      toolArgs.File,
+			Mode:            "restore",
+			ReferenceImages: toolArgs.ReferenceImages,
 		}
 		if toolArgs.Preview != nil {
 			genReq.Preview = *toolArgs.Preview

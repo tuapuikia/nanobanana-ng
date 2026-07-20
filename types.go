@@ -16,6 +16,7 @@ type ImageGenerationRequest struct {
 	StoryFile                  string   `json:"storyFile,omitempty"`
 	CharacterImage             string   `json:"characterImage,omitempty"`
 	ReferencePage              string   `json:"referencePage,omitempty"`
+	ReferenceImages            []string `json:"referenceImages,omitempty"`
 	Page                       string   `json:"page,omitempty"`
 	StartPage                  string   `json:"startPage,omitempty"`
 	Layout                     string   `json:"layout,omitempty"`
@@ -73,33 +74,36 @@ type FileSearchDirResult struct {
 }
 
 type GenerateImageArgs struct {
-	Prompt      string   `json:"prompt"`
-	OutputCount *int     `json:"outputCount,omitempty"`
-	Styles      []string `json:"styles,omitempty"`
-	Variations  []string `json:"variations,omitempty"`
-	Format      string   `json:"format,omitempty"`
-	Seed        *int     `json:"seed,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
-	TopP        *float64 `json:"topP,omitempty"`
-	Preview     *bool    `json:"preview,omitempty"`
-	NoPreview   *bool    `json:"noPreview,omitempty"`
-	NoPreviewK  *bool    `json:"no-preview,omitempty"`
+	Prompt          string   `json:"prompt"`
+	OutputCount     *int     `json:"outputCount,omitempty"`
+	Styles          []string `json:"styles,omitempty"`
+	Variations      []string `json:"variations,omitempty"`
+	Format          string   `json:"format,omitempty"`
+	Seed            *int     `json:"seed,omitempty"`
+	Temperature     *float64 `json:"temperature,omitempty"`
+	TopP            *float64 `json:"topP,omitempty"`
+	Preview         *bool    `json:"preview,omitempty"`
+	NoPreview       *bool    `json:"noPreview,omitempty"`
+	NoPreviewK      *bool    `json:"no-preview,omitempty"`
+	ReferenceImages []string `json:"referenceImages,omitempty"`
 }
 
 type EditImageArgs struct {
-	Prompt     string `json:"prompt"`
-	File       string `json:"file"`
-	Preview    *bool  `json:"preview,omitempty"`
-	NoPreview  *bool  `json:"noPreview,omitempty"`
-	NoPreviewK *bool  `json:"no-preview,omitempty"`
+	Prompt          string   `json:"prompt"`
+	File            string   `json:"file"`
+	Preview         *bool    `json:"preview,omitempty"`
+	NoPreview       *bool    `json:"noPreview,omitempty"`
+	NoPreviewK      *bool    `json:"no-preview,omitempty"`
+	ReferenceImages []string `json:"referenceImages,omitempty"`
 }
 
 type RestoreImageArgs struct {
-	Prompt     string `json:"prompt"`
-	File       string `json:"file"`
-	Preview    *bool  `json:"preview,omitempty"`
-	NoPreview  *bool  `json:"noPreview,omitempty"`
-	NoPreviewK *bool  `json:"no-preview,omitempty"`
+	Prompt          string   `json:"prompt"`
+	File            string   `json:"file"`
+	Preview         *bool    `json:"preview,omitempty"`
+	NoPreview       *bool    `json:"noPreview,omitempty"`
+	NoPreviewK      *bool    `json:"no-preview,omitempty"`
+	ReferenceImages []string `json:"referenceImages,omitempty"`
 }
 
 type GenerateIconArgs struct {
